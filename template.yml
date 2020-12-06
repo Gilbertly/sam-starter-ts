@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM starter Typescript template.
+
+Parameters:
+  Secret:
+    Type: String
+    Description: Secret parameter value.
+    Default: ''
+
+Globals:
+  Function:
+    Timeout: 45
+    Runtime: nodejs12.x
+    CodeUri: ./build
+    Environment:
+      Variables:
+        Secret: !Ref Secret
+    Layers:
+      - !Ref DependenciesLayer
+
+Resources:
+  DependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: sam-dependencies
+      ContentUri: ./
+      CompatibleRuntimes:
+        - nodejs12.x
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: nodejs12.x
+
+  HelloFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: hello.handler
+      Events:
+        Hello:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: get

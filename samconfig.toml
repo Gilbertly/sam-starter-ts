@@ -1,0 +1,21 @@
+version=0.1
+
+[default.deploy]
+region = "us-east-1"
+confirm_changeset = false
+
+[dev.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+stack_name = "dev-sam-starter-ts"
+s3_bucket = "dev-sam-starter-ts"
+parameter_overrides = [
+  "Secret=secretDev"
+]
+
+[prod.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+stack_name = "prod-sam-starter-ts"
+s3_bucket = "prod-sam-starter-ts"
+parameter_overrides = [
+  "Secret=secretProd"
+]
