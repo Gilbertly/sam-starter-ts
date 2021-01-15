@@ -4,10 +4,10 @@ phases:
     runtime-versions:
       nodejs: 12
     commands:
-      - echo "Install Dependencies" | npm install
+      - npm install
   build:
     commands:
-      - echo "Build and Deploy ${ENV_TYPE}" | npm run deploy:${ENV_TYPE}
+      - npm run deploy:${ENV_TYPE}
 
 artifacts:
   name: ${ENV_TYPE}-build-artifacts-$(date +%Y-%m-%d)
