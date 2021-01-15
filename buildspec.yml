@@ -7,7 +7,7 @@ phases:
       - echo "Install Dependencies" | npm install
   build:
     commands:
-      - echo "Run ${ENV_TYPE} Build" | npm run build:${ENV_TYPE}
+      - echo "Build and Deploy ${ENV_TYPE}" | npm run deploy:${ENV_TYPE}
 
 artifacts:
   name: ${ENV_TYPE}-build-artifacts-$(date +%Y-%m-%d)
