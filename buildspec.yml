@@ -1,29 +1,16 @@
 version: 0.2
-env:
-  parameter-store:
-    secret: password
-
 phases:
   install:
     runtime-versions:
       nodejs: 12
-
-  pre_build:
     commands:
       - echo "Install Dependencies" | npm install
-
   build:
     commands:
-      - npm run build
-
-  post_build:
-    commands:
-      - aws cloudformation package
-        --template-file template.yml
-        --s3-bucket $BUCKET
-        --output-template-file outputtemplate.yml
+      - echo "Run ${ENV_TYPE} Build" | npm run build:${ENV_TYPE}
 
 artifacts:
-  type: zip
+  name: ${ENV_TYPE}-build-artifacts-$(date +%Y-%m-%d)
   files:
-    - outputtemplate.yml
+    - .aws-sam/*
+    - build/*
