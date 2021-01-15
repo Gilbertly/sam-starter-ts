@@ -7,6 +7,8 @@ phases:
       - npm install
   build:
     commands:
+      - ls -la
+      - which sam && sam --version
       - npm run deploy:${ENV_TYPE}
 
 artifacts:
