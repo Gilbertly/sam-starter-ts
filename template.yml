@@ -3,10 +3,36 @@ Transform: AWS::Serverless-2016-10-31
 Description: SAM starter Typescript template.
 
 Parameters:
-  Secret:
+  ProjectName:
     Type: String
-    Description: Secret parameter value.
+    Description: Project name used throughut resources.
+    Default: sam-starter
+  EnvType:
+    Type: String
+    Description: Environment type.
+  GithubOwner:
+    Type: String
+    Description: Github repo owner.
+    Default: gilbertly
+  GithubRepo:
+    Type: String
+    Description: Github repo name.
+    Default: sam-starter-ts
+  GithubOAuthToken:
+    Type: String
+    Description: Github OAuth token. User must have admin permissions to the repo.
+    NoEcho: true
+  GithubBranchSource:
+    Type: String
+    Description: Github branch to build from.
+    Default: main
+  GithubBranchDest:
+    Type: String
+    Description: Git branch to open a PR into after deploy.
     Default: ''
+
+Conditions:
+  PullRequestAfterDeploy: !Not [!Equals [!Ref GithubBranchDest, '']]
 
 Globals:
   Function:
@@ -15,7 +41,7 @@ Globals:
     CodeUri: ./build
     Environment:
       Variables:
-        Secret: !Ref Secret
+        ProjectName: !Ref ProjectName
     Layers:
       - !Ref DependenciesLayer
 
@@ -23,17 +49,18 @@ Resources:
   DependenciesLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      LayerName: sam-dependencies
+      LayerName: !Sub '${ProjectName}-dependencies'
       ContentUri: ./
       CompatibleRuntimes:
         - nodejs12.x
-      RetentionPolicy: Retain
+      RetentionPolicy: Delete
     Metadata:
       BuildMethod: nodejs12.x
 
   HelloFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: HelloFunction
       Handler: hello.handler
       Events:
         Hello:
@@ -41,3 +68,337 @@ Resources:
           Properties:
             Path: /hello
             Method: get
+
+  S3DeploymentArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub '${ProjectName}-deploy-artifacts'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+
+  GitHubActionFunction:
+    Type: AWS::Serverless::Function
+    Condition: PullRequestAfterDeploy
+    Properties:
+      FunctionName: GithubActionFunction
+      Handler: github.handler
+      Role: !GetAtt GitHubActionFunctionRole.Arn
+      Environment:
+        Variables:
+          GITHUB_REPO_OWNER: !Ref GithubOwner
+          GITHUB_REPO: !Ref GithubRepo
+          GITHUB_SOURCE_BRANCH: !Ref GithubBranchSource
+          GITHUB_DEST_BRANCH: !Ref GithubBranchDest
+          GITHUB_OAUTH_TOKEN: !Ref GithubOAuthToken
+
+  GitHubActionFunctionRole:
+    Type: AWS::IAM::Role
+    Condition: PullRequestAfterDeploy
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: lambda.amazonaws.com
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Sid: AllowCreateLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Sid: AllowCodePipelineActions
+                Effect: Allow
+                Action:
+                  - codepipeline:AcknowledgeJob
+                  - codepipeline:PutJobSuccessResult
+                  - codepipeline:PutJobFailureResult
+                Resource: '*'
+          PolicyName: !Sub '${ProjectName}-github-action-policy'
+      RoleName: !Sub '${ProjectName}-github-action-role'
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-codebuild'
+      ServiceRole: !GetAtt CodeBuildProjectRole.Arn
+      TimeoutInMinutes: 10
+      Source:
+        Type: CODEPIPELINE
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        EnvironmentVariables:
+          - Name: ENV_TYPE
+            Type: PLAINTEXT
+            Value: !Ref EnvType
+
+  CodeBuildProjectRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: codebuild.amazonaws.com
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Sid: AllowCreateLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Sid: AllowS3ObjectManipulation
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::codepipeline-${AWS::Region}-*/*'
+                  - !Sub 'arn:aws:s3:::${S3DeploymentArtifactBucket}/*'
+          PolicyName: !Sub '${ProjectName}-codebuild-policy'
+      RoleName: !Sub '${ProjectName}-codebuild-role'
+
+  CodeStarSourceConnection:
+    Type: AWS::CodeStarConnections::Connection
+    Properties:
+      ProviderType: GitHub
+      ConnectionName: !Sub ${ProjectName}-github-connection
+
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-pipeline'
+      RoleArn: !GetAtt CodePipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref S3DeploymentArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Version: '1'
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+              Configuration:
+                ConnectionArn: !Ref CodeStarSourceConnection
+                FullRepositoryId: !Sub ${GithubOwner}/${GithubRepo}
+                BranchName: !Ref GithubBranchSource
+                OutputArtifactFormat: CODE_ZIP
+              OutputArtifacts:
+                - Name: SourceCodeOutputArtifact
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Version: '1'
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: SourceCodeOutputArtifact
+              OutputArtifacts:
+                - Name: BuildOutputArtifact
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              RunOrder: 1
+        - Name: Release
+          Actions:
+            - Name: CreateChangeSet
+              ActionTypeId:
+                Version: '1'
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+              InputArtifacts:
+                - Name: BuildOutputArtifact
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: !Ref ProjectName
+                RoleArn: !GetAtt CloudFormationDeployRole.Arn
+                Capabilities: CAPABILITY_IAM
+                StackName: !Ref ProjectName
+                TemplatePath: BuildOutputArtifact::SamDeploymentTemplate.yaml
+              RunOrder: 1
+            - Name: ApprovalForRelease
+              ActionTypeId:
+                Version: '1'
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+              RunOrder: 2
+            - Name: ExecuteChangeSet
+              ActionTypeId:
+                Version: '1'
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+              Configuration:
+                StackName: !Ref ProjectName
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: !Ref ProjectName
+              RunOrder: 3
+        - !If
+          - PullRequestAfterDeploy
+          - Name: PostRelease
+            Actions:
+              - Name: GitHubPullRequest
+                ActionTypeId:
+                  Version: 1
+                  Category: Invoke
+                  Owner: AWS
+                  Provider: Lambda
+                Configuration:
+                  FunctionName: !Ref GitHubActionFunction
+                RunOrder: 1
+          - !Ref AWS::NoValue
+
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: codepipeline.amazonaws.com
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Sid: AllowCreateLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Sid: AllowS3ObjectManipulation
+                Effect: Allow
+                Action:
+                  - s3:GetObject*
+                  - s3:PutObject*
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${S3DeploymentArtifactBucket}'
+                  - !Sub 'arn:aws:s3:::${S3DeploymentArtifactBucket}/*'
+              - Sid: AllowCodeStarConnections
+                Effect: Allow
+                Action: codestar-connections:UseConnection
+                Resource: !Ref CodeStarSourceConnection
+              - Sid: AllowCloudFormationActions
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DeleteStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ValidateTemplate
+                Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectName}/*'
+              - Sid: AllowCodeBuildActions
+                Effect: Allow
+                Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                  - codebuild:StopBuild
+                Resource: !GetAtt CodeBuildProject.Arn
+              - Sid: AllowCloudFormationPassRole
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !GetAtt CloudFormationDeployRole.Arn
+              - !If
+                - PullRequestAfterDeploy
+                - Sid: AllowPullRequestInvokeFunction
+                  Effect: Allow
+                  Action: lambda:InvokeFunction
+                  Resource: !GetAtt GitHubActionFunction.Arn
+                - !Ref AWS::NoValue
+              - !If
+                - PullRequestAfterDeploy
+                - Sid: AllowPullRequestListFunctions
+                  Effect: Allow
+                  Action: lambda:ListFunctions
+                  Resource: '*'
+                - !Ref AWS::NoValue
+          PolicyName: !Sub '${ProjectName}-codepipeline-policy'
+      RoleName: !Sub '${ProjectName}-codepipeline-role'
+
+  CloudFormationDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: cloudformation.amazonaws.com
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Sid: AllowDeployMostResources
+                Effect: Allow
+                Action:
+                  - iam:*
+                  - cloudtrail:*
+                  - kms:*
+                  - ec2:*
+                  - autoscaling:*
+                  - logs:*
+                  - lambda:*
+                  - events:*
+                  - cloudformation:*
+                  - apigateway:*
+                  - s3:*
+                  - secretsmanager:*
+                  - sns:*
+                  - ssm:*
+                  - rds:*
+                  - cloudwatch:*
+                  - elasticloadbalancing:*
+                  - codedeploy:*
+                  - codebuild:*
+                  - codepipeline:*
+                  - cloudfront:*
+                  - athena:*
+                  - acm:*
+                  - cloud9:*
+                  - cognito-idp:*
+                  - cognito-identity:*
+                  - cognito-sync:*
+                  - ecr:*
+                  - ecs:*
+                  - iot:*
+                  - rds:*
+                  - rds-data:*
+                  - route53:*
+                  - ses:*
+                  - sqs:*
+                  - waf:*
+                Resource: '*'
+          PolicyName: !Sub '${ProjectName}-cloudformation-policy'
+      RoleName: !Sub '${ProjectName}-cloudformation-deploy-role'
