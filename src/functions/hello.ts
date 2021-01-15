@@ -16,7 +16,7 @@ exports.handler = async (
   let eventParam = '';
 
   try {
-    eventParam = queryStrings.message;
+    eventParam = queryStrings.message || '';
   } catch (error) {
     Sentry.captureException(error);
   }
