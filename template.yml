@@ -164,6 +164,10 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: arn:aws:logs:*:*:*
+              - Sid: AllowCodeBuildIAMActions
+                Effect: Allow
+                Action: iam:ListPolicies
+                Resource: '*'
               - Sid: AllowS3ObjectManipulation
                 Effect: Allow
                 Action:
