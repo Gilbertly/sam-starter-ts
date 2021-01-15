@@ -8,7 +8,7 @@
     "watch": "tsc -w",
     "lint:fix": "eslint './src/**/*.{ts,tsx}' --fix",
     "lint:test": "npm run lint:fix && jest",
-    "sam:build": "cp ./package.json ./build/package.json && sam build",
+    "sam:build": "cp ./package.json ./build/package.json && sam build --config-file ./samconfig.toml",
     "clean:build": "rimraf -f build && sam validate && npm run build && npm run sam:build",
     "deploy:dev": "npm run clean:build && sam deploy --config-file ./samconfig.toml --config-env dev",
     "deploy:prod": "npm run clean:build && sam deploy --config-file ./samconfig.toml --config-env prod "
