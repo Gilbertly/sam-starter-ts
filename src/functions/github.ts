@@ -1,5 +1,6 @@
 import { Context, CodePipelineEvent } from 'aws-lambda';
 import * as CodePipeline from 'aws-sdk/clients/codepipeline';
+import {Octokit} from '@octokit/core';
 import { request, RequestOptions } from 'https';
 
 let codePipelineClient: CodePipeline;
@@ -8,19 +9,36 @@ exports.handler = async (
   event: CodePipelineEvent,
   context: Context,
 ): Promise<any> => {
-  if (!codePipelineClient) new CodePipeline();
   context.callbackWaitsForEmptyEventLoop = false;
+  if (!codePipelineClient) new CodePipeline();
+
+  const repoName = process.env['GITHUB_REPO'] || '';
+  const repoOwner = process.env['GITHUB_REPO_OWNER'] || '';
+  const gitSourceBranch = process.env['GITHUB_SOURCE_BRANCH'] || '';
+  const gitDestBranch = process.env['GITHUB_DEST_BRANCH'] || 'master';
+  const authToken = process.env['GITHUB_OAUTH_TOKEN'] || '';
+
+  const octokit = new Octokit({auth: authToken});
+  const pullRequestUrl = `POST /repos/${repoOwner}/${repoName}/pulls`;
   const jobID = event['CodePipeline.job'].id;
 
   try {
-    await createPullRequest();
-    await codePipelineClient
+    const pullResponse = await octokit.request(pullRequestUrl, {
+      owner: repoOwner,
+      repo: repoName,
+      head: gitSourceBranch,
+      base: gitDestBranch,
+    })
+    console.log(`Created pr number: ${JSON.stringify(pullResponse.data.number)}`);
+
+    const response = await codePipelineClient
       .putJobSuccessResult({
         jobId: jobID,
       })
       .promise();
+    console.log(`Codepipeline response: \n${JSON.stringify(response)}`);
   } catch (error) {
-    console.error(error);
+    console.error(`Error creating pull request: ${error}`);
     await codePipelineClient
       .putJobFailureResult({
         jobId: jobID,
@@ -32,7 +50,7 @@ exports.handler = async (
       })
       .promise();
   }
-  return {};
+  return;
 };
 
 const createPullRequest = () => {
