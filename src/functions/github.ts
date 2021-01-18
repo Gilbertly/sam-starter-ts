@@ -31,15 +31,14 @@ exports.handler = async (
     })
     console.log(`Created pr number: ${JSON.stringify(pullResponse.data.number)}`);
 
-    const response = await codePipelineClient
+    return await codePipelineClient
       .putJobSuccessResult({
         jobId: jobID,
       })
       .promise();
-    console.log(`Codepipeline response: \n${JSON.stringify(response)}`);
   } catch (error) {
     console.error(`Error creating pull request: ${error}`);
-    await codePipelineClient
+    return await codePipelineClient
       .putJobFailureResult({
         jobId: jobID,
         failureDetails: {
@@ -50,7 +49,6 @@ exports.handler = async (
       })
       .promise();
   }
-  return;
 };
 
 const createPullRequest = () => {
