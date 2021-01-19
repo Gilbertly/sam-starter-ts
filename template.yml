@@ -140,9 +140,7 @@ Resources:
               runtime-versions:
                 nodejs: 12
               commands:
-                - node `node --version` \
-                  \n npm `npm --version` \
-                  \n sam `sam --version`
+                - node --version && npm --version &&  sam --version
                 - npm install
             build:
               commands:
@@ -231,7 +229,7 @@ Resources:
               Configuration:
                 ConnectionArn: !Ref CodeStarSourceConnection
                 FullRepositoryId: !Sub ${GithubOwner}/${GithubRepo}
-                BranchName: !Ref GithubBranchSource
+                BranchName: develop
                 OutputArtifactFormat: CODE_ZIP
               OutputArtifacts:
                 - Name: SourceCodeOutputArtifact
