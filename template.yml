@@ -145,10 +145,10 @@ Resources:
             build:
               commands:
                 - npm run clean:build
-                - aws cloudformation package \
-                  --template-file ./template.yml \
-                  --s3-bucket ${ARTIFACTS_BUCKET} \
-                  --s3-prefix codepipeline/${PROJECT_NAME} \
+                - aws cloudformation package
+                  --template-file ./template.yml
+                  --s3-bucket ${ARTIFACTS_BUCKET}
+                  --s3-prefix codepipeline/${PROJECT_NAME}
                   --output-template-file template-output.yml
           artifacts:
             files:
