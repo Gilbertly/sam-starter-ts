@@ -133,6 +133,28 @@ Resources:
       TimeoutInMinutes: 10
       Source:
         Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                nodejs: 12
+              commands:
+                - node `node --version` \
+                  \n npm `npm --version` \
+                  \n sam `sam --version`
+                - npm install
+            build:
+              commands:
+                - npm run clean:build
+                - aws cloudformation package \
+                  --template-file ./template.yml \
+                  --s3-bucket ${ARTIFACTS_BUCKET} \
+                  --s3-prefix codepipeline/${PROJECT_NAME} \
+                  --output-template-file template-output.yml
+          artifacts:
+            files:
+              - template-output.yml
       Artifacts:
         Type: CODEPIPELINE
       Environment:
@@ -140,9 +162,12 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
         EnvironmentVariables:
-          - Name: ENV_TYPE
+          - Name: ARTIFACTS_BUCKET
             Type: PLAINTEXT
-            Value: !Ref EnvType
+            Value: !Ref S3DeploymentArtifactBucket
+          - Name: PROJECT_NAME
+            Type: PLAINTEXT
+            Value: !Ref ProjectName
 
   CodeBuildProjectRole:
     Type: AWS::IAM::Role
