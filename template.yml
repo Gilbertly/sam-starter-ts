@@ -21,6 +21,7 @@ Parameters:
   GithubOAuthToken:
     Type: String
     Description: Github OAuth token. User must have admin permissions to the repo.
+    Default: 805fb9ce8104440a96be85434a57721c1c4aea8c
     NoEcho: true
   GithubBranchSource:
     Type: String
@@ -73,7 +74,7 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
     Properties:
-      BucketName: !Sub '${ProjectName}-deploy-artifacts'
+      BucketName: !Sub '${EnvType}-${ProjectName}-deploy-artifacts'
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicPolicy: true
