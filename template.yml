@@ -24,11 +24,11 @@ Parameters:
     NoEcho: true
   GithubBranchSource:
     Type: String
-    Description: Github branch to build from.
-    Default: main
+    Description: Github branch to build from. eg. develop/staging.
+    Default: develop
   GithubBranchDest:
     Type: String
-    Description: Git branch to open a PR into after deploy.
+    Description: Git branch to open a PR into after deploy. eg. master/main.
     Default: ''
 
 Conditions:
@@ -228,54 +228,25 @@ Resources:
               RunOrder: 1
         - Name: Release
           Actions:
-            - Name: CreateChangeSet
-              ActionTypeId:
-                Version: '1'
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-              InputArtifacts:
-                - Name: BuildOutputArtifact
-              Configuration:
-                ActionMode: CHANGE_SET_REPLACE
-                ChangeSetName: !Ref ProjectName
-                RoleArn: !GetAtt CloudFormationDeployRole.Arn
-                Capabilities: CAPABILITY_IAM
-                StackName: !Ref ProjectName
-                TemplatePath: BuildOutputArtifact::SamDeploymentTemplate.yaml
-              RunOrder: 1
             - Name: ApprovalForRelease
               ActionTypeId:
                 Version: '1'
                 Category: Approval
                 Owner: AWS
                 Provider: Manual
-              RunOrder: 2
-            - Name: ExecuteChangeSet
-              ActionTypeId:
-                Version: '1'
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-              Configuration:
-                StackName: !Ref ProjectName
-                ActionMode: CHANGE_SET_EXECUTE
-                ChangeSetName: !Ref ProjectName
-              RunOrder: 3
-        - !If
-          - PullRequestAfterDeploy
-          - Name: PostRelease
-            Actions:
+              RunOrder: 1
+            - !If
+              - PullRequestAfterDeploy
               - Name: GitHubPullRequest
                 ActionTypeId:
-                  Version: 1
+                  Version: '1'
                   Category: Invoke
                   Owner: AWS
                   Provider: Lambda
                 Configuration:
                   FunctionName: !Ref GitHubActionFunction
-                RunOrder: 1
-          - !Ref AWS::NoValue
+                RunOrder: 2
+              - !Ref AWS::NoValue
 
   CodePipelineRole:
     Type: AWS::IAM::Role

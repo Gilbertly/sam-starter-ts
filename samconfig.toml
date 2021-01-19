@@ -10,7 +10,7 @@ stack_name = "dev-sam-starter-ts"
 s3_bucket = "dev-sam-starter-ts"
 parameter_overrides = [
   "EnvType=dev",
-  "GithubBranchDest=develop"
+  "GithubBranchDest=main"
 ]
 
 [prod.deploy.parameters]
