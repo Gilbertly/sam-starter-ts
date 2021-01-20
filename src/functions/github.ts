@@ -40,10 +40,19 @@ exports.handler = async (
       { jobId: jobID },
       (err, data) => {
         if (err) console.log(`PutJobSuccess error: ${err}`);
-        return data;
+        return JSON.stringify(data);
       },
     );
   } catch (error) {
+    if (error.message.includes('pull request already exists')) {
+      return codePipelineClient.putJobSuccessResult(
+        { jobId: jobID },
+        (err, data) => {
+          if (err) console.log(`PutJobSuccess error: ${err}`);
+          return JSON.stringify(data);
+        },
+      );
+    }
     return codePipelineClient.putJobFailureResult(
       {
         jobId: jobID,
@@ -55,7 +64,7 @@ exports.handler = async (
       },
       (err, data) => {
         if (err) console.log(`PutJobFailure error: ${err.message}`);
-        return data;
+        return JSON.stringify(data);
       },
     );
   }
