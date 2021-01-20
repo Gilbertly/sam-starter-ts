@@ -36,23 +36,12 @@ exports.handler = async (
     });
     console.log(`Opened pull request #${pullResponse.data.number}`);
 
-    return codePipelineClient.putJobSuccessResult(
-      { jobId: jobID },
-      (err, data) => {
-        if (err) console.log(`PutJobSuccess error: ${err}`);
-        return JSON.stringify(data);
-      },
-    );
+    return codepipelineJobSuccess(jobID);
   } catch (error) {
     if (error.message.includes('pull request already exists')) {
-      return codePipelineClient.putJobSuccessResult(
-        { jobId: jobID },
-        (err, data) => {
-          if (err) console.log(`PutJobSuccess error: ${err}`);
-          return JSON.stringify(data);
-        },
-      );
+      return codepipelineJobSuccess(jobID);
     }
+
     return codePipelineClient.putJobFailureResult(
       {
         jobId: jobID,
@@ -68,4 +57,14 @@ exports.handler = async (
       },
     );
   }
+};
+
+const codepipelineJobSuccess = (jobID: string) => {
+  return codePipelineClient.putJobSuccessResult(
+    { jobId: jobID },
+    (err, data) => {
+      if (err) console.log(`PutJobSuccess error: ${err}`);
+      return JSON.stringify(data);
+    },
+  );
 };
