@@ -9,7 +9,7 @@ exports.handler = async (
   context: Context,
 ): Promise<any> => {
   context.callbackWaitsForEmptyEventLoop = false;
-  if (!codePipelineClient) new CodePipeline();
+  if (!codePipelineClient) codePipelineClient = new CodePipeline();
 
   const repoName = process.env['GITHUB_REPO'] || '';
   const repoOwner = process.env['GITHUB_REPO_OWNER'] || '';
