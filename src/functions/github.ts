@@ -24,7 +24,7 @@ exports.handler = async (
 
   try {
     const pullRequestTitle = `CodePipeline Auto-Pull-Request (Job Id: ${jobIDShort})`;
-    const pullRequestBody = `Automated pull request to merge ${gitSourceBranch} into ${gitDestBranch}, created from CodePipeline job id: ${jobID}`;
+    const pullRequestBody = `Automated pull request to merge ${gitSourceBranch} into ${gitDestBranch}.`;
 
     const pullResponse = await octokit.request(pullRequestUrl, {
       owner: repoOwner,
@@ -34,18 +34,17 @@ exports.handler = async (
       title: pullRequestTitle,
       body: pullRequestBody,
     });
-    console.log(`PR number: ${JSON.stringify(pullResponse.data.number)}`);
+    const prNumber = JSON.stringify(pullResponse.data.number);
+    console.log(`Successfully opened pull request #${prNumber}`);
 
     return codePipelineClient.putJobSuccessResult(
       { jobId: jobID },
       (err, data) => {
-        if (err) console.log(`PutJobSuccess error: ${JSON.stringify(err)}`);
-        console.log(`PutJobSuccess: ${JSON.stringify(data)}`);
+        if (err) console.log(`PutJobSuccess error: ${err}`);
         return data;
       },
     );
   } catch (error) {
-    console.error(`Error creating pull request: ${error}`);
     return codePipelineClient.putJobFailureResult(
       {
         jobId: jobID,
@@ -56,8 +55,7 @@ exports.handler = async (
         },
       },
       (err, data) => {
-        if (err) console.log(`PutJobFailure error: ${JSON.stringify(err)}`);
-        console.log(`PutJobFailure: ${JSON.stringify(data)}`);
+        if (err) console.log(`PutJobFailure error: ${err.message}`);
         return data;
       },
     );
