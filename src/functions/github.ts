@@ -34,8 +34,7 @@ exports.handler = async (
       title: pullRequestTitle,
       body: pullRequestBody,
     });
-    const prNumber = JSON.stringify(pullResponse.data.number);
-    console.log(`Successfully opened pull request #${prNumber}`);
+    console.log(`Opened pull request #${pullResponse.data.number}`);
 
     return codePipelineClient.putJobSuccessResult(
       { jobId: jobID },
