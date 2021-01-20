@@ -30,28 +30,30 @@ exports.handler = async (
     });
     console.log(`PR number: ${JSON.stringify(pullResponse.data.number)}`);
 
-    const cpResponse = await codePipelineClient
-      .putJobSuccessResult({
-        jobId: jobID,
-      })
-      .promise();
-    console.log(`codepipeline success response: ${JSON.stringify(cpResponse)}`);
-
-    return cpResponse;
+    return codePipelineClient.putJobSuccessResult(
+      { jobId: jobID },
+      (err, data) => {
+        if (err) console.log(`PutJobSuccess error: ${JSON.stringify(err)}`);
+        console.log(`PutJobSuccess: ${JSON.stringify(data)}`);
+        return data;
+      },
+    );
   } catch (error) {
     console.error(`Error creating pull request: ${error}`);
-    const cpResponse = await codePipelineClient
-      .putJobFailureResult({
+    return codePipelineClient.putJobFailureResult(
+      {
         jobId: jobID,
         failureDetails: {
           type: 'JobFailed',
           message: error.message,
           externalExecutionId: context.awsRequestId,
         },
-      })
-      .promise();
-    console.log(`codepipeline error response: ${JSON.stringify(cpResponse)}`);
-
-    return cpResponse;
+      },
+      (err, data) => {
+        if (err) console.log(`PutJobFailure error: ${JSON.stringify(err)}`);
+        console.log(`PutJobFailure: ${JSON.stringify(data)}`);
+        return data;
+      },
+    );
   }
 };
