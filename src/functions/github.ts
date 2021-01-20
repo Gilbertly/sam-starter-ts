@@ -20,13 +20,19 @@ exports.handler = async (
   const octokit = new Octokit({ auth: authToken });
   const pullRequestUrl = `POST /repos/${repoOwner}/${repoName}/pulls`;
   const jobID = event['CodePipeline.job'].id;
+  const jobIDShort = jobID.split('-')[0];
 
   try {
+    const pullRequestTitle = `CodePipeline Auto-Pull-Request (Job Id: ${jobIDShort})`;
+    const pullRequestBody = `Automated pull request to merge ${gitSourceBranch} into ${gitDestBranch}, created from CodePipeline job id: ${jobID}`;
+
     const pullResponse = await octokit.request(pullRequestUrl, {
       owner: repoOwner,
       repo: repoName,
       head: gitSourceBranch,
       base: gitDestBranch,
+      title: pullRequestTitle,
+      body: pullRequestBody,
     });
     console.log(`PR number: ${JSON.stringify(pullResponse.data.number)}`);
 
