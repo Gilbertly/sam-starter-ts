@@ -25,7 +25,6 @@ Parameters:
   GithubBranchSource:
     Type: String
     Description: Github branch to build from. eg. develop/staging.
-    Default: develop
   GithubBranchDest:
     Type: String
     Description: Git branch to open a PR into after deploy. eg. master/main.
