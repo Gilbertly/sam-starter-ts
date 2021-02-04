@@ -10,7 +10,9 @@ stack_name = "dev-sam-starter-ts"
 s3_bucket = "dev-sam-starter-ts"
 parameter_overrides = [
   "EnvType=dev",
-  "GithubBranchDest=main"
+  "GithubBranchSource=develop",
+  "GithubBranchDest=main",
+  "GithubOAuthToken="
 ]
 
 [prod.deploy.parameters]
@@ -18,5 +20,7 @@ capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 stack_name = "prod-sam-starter-ts"
 s3_bucket = "prod-sam-starter-ts"
 parameter_overrides = [
-  "EnvType=prod"
+  "EnvType=prod",
+  "GithubBranchSource=main",
+  "GithubOAuthToken="
 ]
