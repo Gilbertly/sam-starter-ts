@@ -24,11 +24,10 @@ Parameters:
     NoEcho: true
   GithubBranchSource:
     Type: String
-    Description: Github branch to build from.
-    Default: main
+    Description: Github branch to build from. eg. develop/staging.
   GithubBranchDest:
     Type: String
-    Description: Git branch to open a PR into after deploy.
+    Description: Git branch to open a PR into after deploy. eg. master/main.
     Default: ''
 
 Conditions:
@@ -73,7 +72,7 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
     Properties:
-      BucketName: !Sub '${ProjectName}-deploy-artifacts'
+      BucketName: !Sub '${EnvType}-${ProjectName}-deploy-artifacts'
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicPolicy: true
@@ -133,6 +132,30 @@ Resources:
       TimeoutInMinutes: 10
       Source:
         Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                nodejs: 12
+              commands:
+                - node --version && npm --version &&  sam --version
+                - npm install
+            build:
+              commands:
+                - npm run clean:build
+                - aws cloudformation package
+                  --template-file ./template.yml
+                  --s3-bucket ${ARTIFACTS_BUCKET}
+                  --s3-prefix codepipeline/${PROJECT_NAME}
+                  --output-template-file template-output.yml
+            post_build:
+              commands:
+                - go get github.com/github-release/github-release
+                - chmod +x ./release.sh && ./release.sh ${REPO_OWNER} ${REPO_NAME}
+          artifacts:
+            files:
+              - template-output.yml
       Artifacts:
         Type: CODEPIPELINE
       Environment:
@@ -140,9 +163,21 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
         EnvironmentVariables:
-          - Name: ENV_TYPE
+          - Name: ARTIFACTS_BUCKET
             Type: PLAINTEXT
-            Value: !Ref EnvType
+            Value: !Ref S3DeploymentArtifactBucket
+          - Name: PROJECT_NAME
+            Type: PLAINTEXT
+            Value: !Ref ProjectName
+          - Name: REPO_OWNER
+            Type: PLAINTEXT
+            Value: !Ref GithubOwner
+          - Name: REPO_NAME
+            Type: PLAINTEXT
+            Value: !Ref GithubRepo
+          - Name: ROLLBACK_VERSION
+            Type: PLAINTEXT
+            Value: !Ref RollbackVersion
 
   CodeBuildProjectRole:
     Type: AWS::IAM::Role
@@ -206,7 +241,7 @@ Resources:
               Configuration:
                 ConnectionArn: !Ref CodeStarSourceConnection
                 FullRepositoryId: !Sub ${GithubOwner}/${GithubRepo}
-                BranchName: !Ref GithubBranchSource
+                BranchName: develop
                 OutputArtifactFormat: CODE_ZIP
               OutputArtifacts:
                 - Name: SourceCodeOutputArtifact
@@ -228,54 +263,25 @@ Resources:
               RunOrder: 1
         - Name: Release
           Actions:
-            - Name: CreateChangeSet
-              ActionTypeId:
-                Version: '1'
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-              InputArtifacts:
-                - Name: BuildOutputArtifact
-              Configuration:
-                ActionMode: CHANGE_SET_REPLACE
-                ChangeSetName: !Ref ProjectName
-                RoleArn: !GetAtt CloudFormationDeployRole.Arn
-                Capabilities: CAPABILITY_IAM
-                StackName: !Ref ProjectName
-                TemplatePath: BuildOutputArtifact::SamDeploymentTemplate.yaml
-              RunOrder: 1
             - Name: ApprovalForRelease
               ActionTypeId:
                 Version: '1'
                 Category: Approval
                 Owner: AWS
                 Provider: Manual
-              RunOrder: 2
-            - Name: ExecuteChangeSet
-              ActionTypeId:
-                Version: '1'
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-              Configuration:
-                StackName: !Ref ProjectName
-                ActionMode: CHANGE_SET_EXECUTE
-                ChangeSetName: !Ref ProjectName
-              RunOrder: 3
-        - !If
-          - PullRequestAfterDeploy
-          - Name: PostRelease
-            Actions:
+              RunOrder: 1
+            - !If
+              - PullRequestAfterDeploy
               - Name: GitHubPullRequest
                 ActionTypeId:
-                  Version: 1
+                  Version: '1'
                   Category: Invoke
                   Owner: AWS
                   Provider: Lambda
                 Configuration:
                   FunctionName: !Ref GitHubActionFunction
-                RunOrder: 1
-          - !Ref AWS::NoValue
+                RunOrder: 2
+              - !Ref AWS::NoValue
 
   CodePipelineRole:
     Type: AWS::IAM::Role

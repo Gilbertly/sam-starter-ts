@@ -1,7 +1,6 @@
 import { Context, CodePipelineEvent } from 'aws-lambda';
 import * as CodePipeline from 'aws-sdk/clients/codepipeline';
-import {Octokit} from '@octokit/core';
-import { request, RequestOptions } from 'https';
+import { Octokit } from '@octokit/core';
 
 let codePipelineClient: CodePipeline;
 
@@ -10,125 +9,62 @@ exports.handler = async (
   context: Context,
 ): Promise<any> => {
   context.callbackWaitsForEmptyEventLoop = false;
-  if (!codePipelineClient) new CodePipeline();
+  if (!codePipelineClient) codePipelineClient = new CodePipeline();
 
   const repoName = process.env['GITHUB_REPO'] || '';
   const repoOwner = process.env['GITHUB_REPO_OWNER'] || '';
-  const gitSourceBranch = process.env['GITHUB_SOURCE_BRANCH'] || '';
-  const gitDestBranch = process.env['GITHUB_DEST_BRANCH'] || 'master';
+  const gitSourceBranch = process.env['GITHUB_SOURCE_BRANCH'] || 'develop';
+  const gitDestBranch = process.env['GITHUB_DEST_BRANCH'] || 'main';
   const authToken = process.env['GITHUB_OAUTH_TOKEN'] || '';
 
-  const octokit = new Octokit({auth: authToken});
+  const octokit = new Octokit({ auth: authToken });
   const pullRequestUrl = `POST /repos/${repoOwner}/${repoName}/pulls`;
   const jobID = event['CodePipeline.job'].id;
+  const jobIDShort = jobID.split('-')[0];
 
   try {
+    const pullRequestTitle = `CodePipeline Auto-Pull-Request (Job Id: ${jobIDShort})`;
+    const pullRequestBody = `Automated pull request to merge ${gitSourceBranch} into ${gitDestBranch}.`;
+
     const pullResponse = await octokit.request(pullRequestUrl, {
       owner: repoOwner,
       repo: repoName,
       head: gitSourceBranch,
       base: gitDestBranch,
-    })
-    console.log(`Created pr number: ${JSON.stringify(pullResponse.data.number)}`);
+      title: pullRequestTitle,
+      body: pullRequestBody,
+    });
+    console.log(`Opened pull request #${pullResponse.data.number}`);
 
-    return await codePipelineClient
-      .putJobSuccessResult({
-        jobId: jobID,
-      })
-      .promise();
+    return codepipelineJobSuccess(jobID);
   } catch (error) {
-    console.error(`Error creating pull request: ${error}`);
-    return await codePipelineClient
-      .putJobFailureResult({
+    if (error.message.includes('pull request already exists')) {
+      return codepipelineJobSuccess(jobID);
+    }
+
+    return codePipelineClient.putJobFailureResult(
+      {
         jobId: jobID,
         failureDetails: {
           type: 'JobFailed',
           message: error.message,
           externalExecutionId: context.awsRequestId,
         },
-      })
-      .promise();
+      },
+      (err, data) => {
+        if (err) console.log(`PutJobFailure error: ${err.message}`);
+        return JSON.stringify(data);
+      },
+    );
   }
 };
 
-const createPullRequest = () => {
-  const repo = process.env['GITHUB_REPO'];
-  const repoOwner = process.env['GITHUB_REPO_OWNER'];
-
-  try {
-    const pullRequestBody = {
-      title: 'Automatic pull request by CI',
-      head: process.env['GITHUB_SOURCE_BRANCH'],
-      base: process.env['GITHUB_DEST_BRANCH'],
-    };
-    const path = `/repos/${repoOwner}/${repo}/pulls`;
-    githubRequest('POST', path, pullRequestBody);
-    return true;
-  } catch (err) {
-    if (err && Array.isArray(err.errors) && err.errors.length === 1) {
-      if (
-        err.errors[0].code === 'custom' &&
-        err.errors[0].message === 'No commits between master and staging'
-      ) {
-        // Nothing changed so no pull request.  This is fine.
-        return null;
-      }
-      if (
-        err.errors[0].code === 'custom' &&
-        /^A pull request already exists for /.test(err.errors[0].message)
-      ) {
-        // There's already a pull request for this.  This is fine.
-        return null;
-      }
-    }
-    throw err;
-  }
-};
-
-const mergePullRequest = (prNumber: string) => {
-  const repo = process.env['GITHUB_REPO'];
-  const repoOwner = process.env['GITHUB_REPO_OWNER'];
-  const path = `/repos/${repoOwner}/${repo}/pulls/${prNumber}/merge`;
-
-  const mergeBody = {
-    commit_message: 'Automatic PR merge by CI',
-  };
-  githubRequest('PUT', path, mergeBody);
-  return true;
-};
-
-const githubRequest = (
-  method: string,
-  path: string,
-  body?: Record<string, any>,
-) => {
-  const oauthToken = process.env['GITHUB_OAUTH_TOKEN'];
-  const bodyJson = JSON.stringify(body);
-  const options: RequestOptions = {
-    hostname: 'api.github.com',
-    port: 443,
-    path: path,
-    method: method,
-    headers: {
-      Authorization: `token ${oauthToken}`,
-      Accept: 'application/json',
-      'Content-Length': bodyJson.length,
-      'Content-Type': 'application/json',
+const codepipelineJobSuccess = (jobID: string) => {
+  return codePipelineClient.putJobSuccessResult(
+    { jobId: jobID },
+    (err, data) => {
+      if (err) console.log(`PutJobSuccess error: ${err}`);
+      return JSON.stringify(data);
     },
-  };
-
-  const req = request(options, response => {
-    const responseBody: string[] = [];
-    console.log(`Request success! ${response.statusMessage}`);
-    response.setEncoding('utf8');
-    response.on('data', d => {
-      responseBody.push(d as string);
-    });
-  });
-
-  req.on('error', error => {
-    console.log(`Error with request! ${error.message}`);
-  });
-  req.write(bodyJson);
-  req.end();
+  );
 };
