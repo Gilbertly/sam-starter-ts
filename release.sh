@@ -62,7 +62,7 @@ elif test -z "$repositoryName"; then
 	exit 1
 else
   currentBranch=$(git rev-parse --abbrev-ref HEAD)
-  if [[ "$currentBranch" != "master" || "$currentBranch" != "main" ]]; then
+  if [[ "$currentBranch" -ne "master" || "$currentBranch" -ne "main" ]]; then
     echo "Info: Current branch '$currentBranch' is not a production branch ('master' or 'main'). Skipping release ..."
     exit 1
   fi
