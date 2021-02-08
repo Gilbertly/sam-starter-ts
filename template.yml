@@ -149,6 +149,10 @@ Resources:
                   --s3-bucket ${ARTIFACTS_BUCKET}
                   --s3-prefix codepipeline/${PROJECT_NAME}
                   --output-template-file template-output.yml
+            post_build:
+              commands:
+                - go get github.com/github-release/github-release
+                - chmod +x ./release.sh && ./release.sh ${REPO_OWNER} ${REPO_NAME}
           artifacts:
             files:
               - template-output.yml
@@ -165,6 +169,15 @@ Resources:
           - Name: PROJECT_NAME
             Type: PLAINTEXT
             Value: !Ref ProjectName
+          - Name: REPO_OWNER
+            Type: PLAINTEXT
+            Value: !Ref GithubOwner
+          - Name: REPO_NAME
+            Type: PLAINTEXT
+            Value: !Ref GithubRepo
+          - Name: ROLLBACK_VERSION
+            Type: PLAINTEXT
+            Value: !Ref RollbackVersion
 
   CodeBuildProjectRole:
     Type: AWS::IAM::Role
