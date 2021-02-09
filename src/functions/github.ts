@@ -24,7 +24,7 @@ exports.handler = async (
     .getJobDetails({ jobId: jobID })
     .promise();
   const inputArtifacts = jobDetails.jobDetails?.data?.inputArtifacts;
-  console.log(`event: ${JSON.stringify(event)}`);
+  console.log(`event: ${event}`);
   console.log(`inputArtifacts: ${inputArtifacts}`);
 
   // const repoName = inputArtifacts['GITHUB_REPO'] || '';
