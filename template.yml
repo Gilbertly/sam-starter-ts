@@ -280,6 +280,7 @@ Resources:
                   Provider: Lambda
                 Configuration:
                   FunctionName: !Ref GitHubActionFunction
+                  UserParameters: '192.168.0.1/16'
                 InputArtifacts:
                   - GITHUB_REPO_OWNER: !Ref GithubOwner
                   - GITHUB_REPO: !Ref GithubRepo
