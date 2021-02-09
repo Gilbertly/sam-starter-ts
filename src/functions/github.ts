@@ -80,7 +80,7 @@ const codepipelineJobSuccess = (jobID: string) => {
     { jobId: jobID },
     (err, data) => {
       if (err) console.log(`PutJobSuccess error: ${err}`);
-      return JSON.stringify(data);
+      return data;
     },
   );
 };
