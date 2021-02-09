@@ -85,13 +85,13 @@ Resources:
       FunctionName: GithubActionFunction
       Handler: github.handler
       Role: !GetAtt GitHubActionFunctionRole.Arn
-      Environment:
-        Variables:
-          GITHUB_REPO_OWNER: !Ref GithubOwner
-          GITHUB_REPO: !Ref GithubRepo
-          GITHUB_SOURCE_BRANCH: !Ref GithubBranchSource
-          GITHUB_DEST_BRANCH: !Ref GithubBranchDest
-          GITHUB_OAUTH_TOKEN: !Ref GithubOAuthToken
+      # Environment:
+      #   Variables:
+      #     GITHUB_REPO_OWNER: !Ref GithubOwner
+      #     GITHUB_REPO: !Ref GithubRepo
+      #     GITHUB_SOURCE_BRANCH: !Ref GithubBranchSource
+      #     GITHUB_DEST_BRANCH: !Ref GithubBranchDest
+      #     GITHUB_OAUTH_TOKEN: !Ref GithubOAuthToken
 
   GitHubActionFunctionRole:
     Type: AWS::IAM::Role
@@ -280,6 +280,12 @@ Resources:
                   Provider: Lambda
                 Configuration:
                   FunctionName: !Ref GitHubActionFunction
+                InputArtifacts:
+                  - GITHUB_REPO_OWNER: !Ref GithubOwner
+                  - GITHUB_REPO: !Ref GithubRepo
+                  - GITHUB_SOURCE_BRANCH: !Ref GithubBranchSource
+                  - GITHUB_DEST_BRANCH: !Ref GithubBranchDest
+                  - GITHUB_OAUTH_TOKEN: !Ref GithubOAuthToken
                 RunOrder: 2
               - !Ref AWS::NoValue
 

@@ -11,16 +11,31 @@ exports.handler = async (
   context.callbackWaitsForEmptyEventLoop = false;
   if (!codePipelineClient) codePipelineClient = new CodePipeline();
 
+  const jobID = event['CodePipeline.job'].id;
+  const jobIDShort = jobID.split('-')[0];
+
   const repoName = process.env['GITHUB_REPO'] || '';
   const repoOwner = process.env['GITHUB_REPO_OWNER'] || '';
   const gitSourceBranch = process.env['GITHUB_SOURCE_BRANCH'] || 'develop';
   const gitDestBranch = process.env['GITHUB_DEST_BRANCH'] || 'main';
   const authToken = process.env['GITHUB_OAUTH_TOKEN'] || '';
 
+  const jobDetails = await codePipelineClient
+    .getJobDetails({ jobId: jobID })
+    .promise();
+  const inputArtifacts = jobDetails.jobDetails?.data?.inputArtifacts;
+  console.log(`event: ${JSON.stringify(inputArtifacts)}`);
+
+  // const repoName = inputArtifacts['GITHUB_REPO'] || '';
+  // const repoOwner = inputArtifacts['GITHUB_REPO_OWNER'] || '';
+  // const gitSourceBranch = inputArtifacts['GITHUB_SOURCE_BRANCH'] || '';
+  // const gitDestBranch = inputArtifacts['GITHUB_DEST_BRANCH'] || '';
+  // const authToken = inputArtifacts['GITHUB_OAUTH_TOKEN'] || '';
+
+  return codepipelineJobSuccess(jobID);
+
   const octokit = new Octokit({ auth: authToken });
   const pullRequestUrl = `POST /repos/${repoOwner}/${repoName}/pulls`;
-  const jobID = event['CodePipeline.job'].id;
-  const jobIDShort = jobID.split('-')[0];
 
   try {
     const pullRequestTitle = `CodePipeline Auto-Pull-Request (Job Id: ${jobIDShort})`;
