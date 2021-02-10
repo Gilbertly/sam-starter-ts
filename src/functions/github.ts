@@ -60,7 +60,7 @@ exports.handler = async (
       (err, data) => {
         if (err) console.log(`PutJobFailure error: ${err.message}`);
         console.log(`PutJobFailure: ${data}`);
-        return;
+        return data;
       },
     );
   }
@@ -72,7 +72,7 @@ const codepipelineJobSuccess = (jobID: string) => {
     (err, data) => {
       if (err) console.log(`PutJobSuccess error: ${err}`);
       console.log(`PutJobSuccess: ${data}`);
-      return;
+      return data;
     },
   );
 };
