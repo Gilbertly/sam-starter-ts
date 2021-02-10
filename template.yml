@@ -273,11 +273,11 @@ Resources:
                   FunctionName: !Ref GitHubActionFunction
                   UserParameters: !Sub |
                     {
-                      GITHUB_REPO_OWNER: '${GithubOwner}',
-                      GITHUB_REPO: '${GithubRepo}',
-                      GITHUB_SOURCE_BRANCH: '${GithubBranchSource}',
-                      GITHUB_DEST_BRANCH: '${GithubBranchDest}',
-                      GITHUB_OAUTH_TOKEN: '${GithubOAuthToken}'
+                      'GITHUB_REPO_OWNER': '${GithubOwner}',
+                      'GITHUB_REPO': '${GithubRepo}',
+                      'GITHUB_SOURCE_BRANCH': '${GithubBranchSource}',
+                      'GITHUB_DEST_BRANCH': '${GithubBranchDest}',
+                      'GITHUB_OAUTH_TOKEN': '${GithubOAuthToken}'
                     }
                 RunOrder: 2
               - !Ref AWS::NoValue
