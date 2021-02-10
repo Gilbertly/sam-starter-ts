@@ -18,7 +18,7 @@ exports.handler = async (
     event['CodePipeline.job'].data.actionConfiguration.configuration
       .UserParameters;
 
-  const parameter = JSON.parse(userParameters.toString());
+  const parameter = JSON.parse(userParameters);
   const repoName = parameter['GITHUB_REPO'] || '';
   const repoOwner = parameter['GITHUB_REPO_OWNER'] || '';
   const gitSourceBranch = parameter['GITHUB_SOURCE_BRANCH'] || '';
