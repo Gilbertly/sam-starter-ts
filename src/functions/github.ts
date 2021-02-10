@@ -20,12 +20,11 @@ exports.handler = async (
   const gitDestBranch = process.env['GITHUB_DEST_BRANCH'] || 'main';
   const authToken = process.env['GITHUB_OAUTH_TOKEN'] || '';
 
-  const jobDetails = await codePipelineClient
-    .getJobDetails({ jobId: jobID })
-    .promise();
-  const inputArtifacts = jobDetails.jobDetails?.data?.inputArtifacts;
-  console.log(`event: ${event}`);
-  console.log(`inputArtifacts: ${inputArtifacts}`);
+  const userParameters =
+    event['CodePipeline.job'].data.actionConfiguration.configuration
+      .UserParameters;
+  console.log(`userParameters: ${userParameters}`);
+
 
   // const repoName = inputArtifacts['GITHUB_REPO'] || '';
   // const repoOwner = inputArtifacts['GITHUB_REPO_OWNER'] || '';
@@ -80,7 +79,7 @@ const codepipelineJobSuccess = (jobID: string) => {
     { jobId: jobID },
     (err, data) => {
       if (err) console.log(`PutJobSuccess error: ${err}`);
-      return data;
+      return JSON.stringify(data);
     },
   );
 };
