@@ -19,7 +19,7 @@ exports.handler = async (
       .UserParameters;
   console.log(userParameters);
 
-  const parameter = JSON.parse(userParameters);
+  const parameter = JSON.parse(JSON.stringify(userParameters));
   const repoName = parameter['GITHUB_REPO'] || '';
   const repoOwner = parameter['GITHUB_REPO_OWNER'] || '';
   const gitSourceBranch = parameter['GITHUB_SOURCE_BRANCH'] || '';
