@@ -17,6 +17,7 @@ exports.handler = async (
   const userParameters =
     event['CodePipeline.job'].data.actionConfiguration.configuration
       .UserParameters;
+  console.log(userParameters);
 
   const parameter = JSON.parse(userParameters);
   const repoName = parameter['GITHUB_REPO'] || '';
