@@ -45,6 +45,8 @@ exports.handler = async (
         gitSourceBranch,
         gitDestBranch,
       );
+      console.log(`Skipping opening a pull request ...`);
+      return codepipelineJobSuccess(jobID);
     }
 
     const pullRequestTitle = `CodePipeline Auto-Pull-Request (Job Id: ${jobIDShort})`;
@@ -123,4 +125,5 @@ const createGithubBranch = async (
     ref: `refs/head/${gitDestBranch}`,
     sha: sourceBranchRef.data.object.sha,
   });
+  console.log(`Branch '${gitDestBranch}' created from '${gitSourceBranch}'`);
 };
