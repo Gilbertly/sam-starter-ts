@@ -36,6 +36,7 @@ exports.handler = async (
       repoName,
       gitDestBranch,
     );
+    console.log(`Branch ${gitDestBranch} exists: ${branchExists}`);
 
     if (!branchExists) {
       await createGithubBranch(
@@ -117,6 +118,7 @@ const createGithubBranch = async (
   gitSourceBranch: string,
   gitDestBranch: string,
 ) => {
+  console.log(`Creating branch ${gitDestBranch} ...`);
   const sourceBranchRef = await octokit.request(
     `GET /repos/${repoOwner}/${repoName}/git/refs/heads/${gitSourceBranch}`,
   );
