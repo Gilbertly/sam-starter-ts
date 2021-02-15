@@ -30,6 +30,23 @@ exports.handler = async (
   const pullRequestUrl = `POST /repos/${repoOwner}/${repoName}/pulls`;
 
   try {
+    const branchExists = await checkBranchExists(
+      octokit,
+      repoOwner,
+      repoName,
+      gitDestBranch,
+    );
+
+    if (!branchExists) {
+      await createGithubBranch(
+        octokit,
+        repoOwner,
+        repoName,
+        gitSourceBranch,
+        gitDestBranch,
+      );
+    }
+
     const pullRequestTitle = `CodePipeline Auto-Pull-Request (Job Id: ${jobIDShort})`;
     const pullRequestBody = `Automated pull request to merge ${gitSourceBranch} into ${gitDestBranch}.`;
 
@@ -76,4 +93,34 @@ const codepipelineJobSuccess = (jobID: string) => {
       return data;
     },
   );
+};
+
+const checkBranchExists = async (
+  octokit: Octokit,
+  repoOwner: string,
+  repoName: string,
+  gitDestBranch: string,
+) => {
+  const destBranchResponse = await octokit.request(
+    `GET /repos/${repoOwner}/${repoName}/branches/${gitDestBranch}`,
+  );
+  if (destBranchResponse.data.name) return true;
+  return false;
+};
+
+const createGithubBranch = async (
+  octokit: Octokit,
+  repoOwner: string,
+  repoName: string,
+  gitSourceBranch: string,
+  gitDestBranch: string,
+) => {
+  const sourceBranchRef = await octokit.request(
+    `GET /repos/${repoOwner}/${repoName}/git/refs/heads/${gitSourceBranch}`,
+  );
+
+  await octokit.request(`POST /repos/${repoOwner}/${repoName}/git/refs`, {
+    ref: `refs/head/${gitDestBranch}`,
+    sha: sourceBranchRef.data.object.sha,
+  });
 };
