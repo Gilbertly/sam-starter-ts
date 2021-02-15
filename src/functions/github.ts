@@ -80,8 +80,8 @@ exports.handler = async (
       },
       (err, data) => {
         if (err) console.log(`PutJobFailure error: ${err.message}`);
-        console.log(`PutJobFailure: ${data}`);
-        return data;
+        console.log(`PutJobFailure: ${JSON.stringify(data)}`);
+        // return data;
       },
     );
   }
@@ -92,8 +92,8 @@ const codepipelineJobSuccess = (jobID: string) => {
     { jobId: jobID },
     (err, data) => {
       if (err) console.log(`PutJobSuccess error: ${err}`);
-      console.log(`PutJobSuccess: ${data}`);
-      return data;
+      console.log(`PutJobSuccess: ${JSON.stringify(data)}`);
+      // return data;
     },
   );
 };
@@ -107,6 +107,7 @@ const checkBranchExists = async (
   const destBranchResponse = await octokit.request(
     `GET /repos/${repoOwner}/${repoName}/branches/${gitDestBranch}`,
   );
+  console.log(`destBranchResponse: ${destBranchResponse}`);
   if (destBranchResponse.data.name) return true;
   return false;
 };
