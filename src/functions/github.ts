@@ -47,7 +47,8 @@ exports.handler = async (
         gitDestBranch,
       );
       console.log(`Skipping opening a pull request ...`);
-      return await codepipelineJobSuccess(jobID);
+      codePipelineClient.putJobSuccessResult({ jobId: jobID });
+      return;
     }
 
     const pullRequestTitle = `CodePipeline Auto-Pull-Request (Job Id: ${jobIDShort})`;
@@ -63,41 +64,24 @@ exports.handler = async (
     });
     console.log(`Opened pull request #${pullResponse.data.number}`);
 
-    return await codepipelineJobSuccess(jobID);
+    codePipelineClient.putJobSuccessResult({ jobId: jobID });
+    return;
   } catch (error) {
     if (error.message.includes('pull request already exists')) {
-      return await codepipelineJobSuccess(jobID);
+      codePipelineClient.putJobSuccessResult({ jobId: jobID });
+      return;
     }
 
-    return await codePipelineClient
-      .putJobFailureResult(
-        {
-          jobId: jobID,
-          failureDetails: {
-            type: 'JobFailed',
-            message: error.message,
-            externalExecutionId: context.awsRequestId,
-          },
-        },
-        (err, data) => {
-          if (err) console.log(`PutJobFailure error: ${err.message}`);
-          console.log(`PutJobFailure successfully!`);
-          // console.log(`PutJobFailure: ${JSON.stringify(data)}`);
-          // return JSON.stringify(data);
-        },
-      )
-      .promise();
+    codePipelineClient.putJobFailureResult({
+      jobId: jobID,
+      failureDetails: {
+        type: 'JobFailed',
+        message: error.message,
+        externalExecutionId: context.awsRequestId,
+      },
+    });
+    return;
   }
-};
-
-const codepipelineJobSuccess = async (jobID: string) => {
-  return await codePipelineClient
-    .putJobSuccessResult({ jobId: jobID }, (err, data) => {
-      if (err) console.log(`PutJobSuccess error: ${err}`);
-      console.log(`PutJobSuccess: ${JSON.stringify(data)}`);
-      return JSON.stringify(data);
-    })
-    .promise();
 };
 
 const checkBranchExists = async (
