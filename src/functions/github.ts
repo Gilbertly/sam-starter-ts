@@ -30,10 +30,9 @@ exports.handler = async (
   const pullRequestUrl = `POST /repos/${repoOwner}/${repoName}/pulls`;
 
   try {
-    const destBranchResponse = await octokit.request(
-      `GET /repos/${repoOwner}/${repoName}/branches/${gitDestBranch}`,
-    );
-    console.log(`destBranchResponse: ${destBranchResponse}`);
+    const refsUrl = `GET /repos/${repoOwner}/${repoName}/git/matching-refs/${gitDestBranch}`;
+    const refsResponse = await octokit.request(refsUrl);
+    console.log(`refsResponse: ${refsResponse}`);
 
     // const branchExists = await checkBranchExists(
     //   octokit,
