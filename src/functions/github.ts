@@ -72,16 +72,20 @@ exports.handler = async (
       return;
     }
 
-    await codePipelineClient
-      .putJobFailureResult({
+    codePipelineClient.putJobFailureResult(
+      {
         jobId: jobID,
         failureDetails: {
           type: 'JobFailed',
           message: error.message,
           externalExecutionId: context.awsRequestId,
         },
-      })
-      .promise();
+      },
+      (err, data) => {
+        if (err) console.log(`PutJobFailure error: ${err.message}`);
+        console.log(`PutJobFailure succcess: ${data}`);
+      },
+    );
     return;
   }
 };
