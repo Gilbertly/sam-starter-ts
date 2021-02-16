@@ -47,7 +47,7 @@ exports.handler = async (
         gitDestBranch,
       );
       console.log(`Skipping opening a pull request ...`);
-      codePipelineClient.putJobSuccessResult({ jobId: jobID });
+      await codePipelineClient.putJobSuccessResult({ jobId: jobID }).promise();
       return;
     }
 
@@ -64,22 +64,24 @@ exports.handler = async (
     });
     console.log(`Opened pull request #${pullResponse.data.number}`);
 
-    codePipelineClient.putJobSuccessResult({ jobId: jobID });
+    await codePipelineClient.putJobSuccessResult({ jobId: jobID }).promise();
     return;
   } catch (error) {
     if (error.message.includes('pull request already exists')) {
-      codePipelineClient.putJobSuccessResult({ jobId: jobID });
+      await codePipelineClient.putJobSuccessResult({ jobId: jobID }).promise();
       return;
     }
 
-    codePipelineClient.putJobFailureResult({
-      jobId: jobID,
-      failureDetails: {
-        type: 'JobFailed',
-        message: error.message,
-        externalExecutionId: context.awsRequestId,
-      },
-    });
+    await codePipelineClient
+      .putJobFailureResult({
+        jobId: jobID,
+        failureDetails: {
+          type: 'JobFailed',
+          message: error.message,
+          externalExecutionId: context.awsRequestId,
+        },
+      })
+      .promise();
     return;
   }
 };
