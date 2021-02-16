@@ -81,8 +81,9 @@ exports.handler = async (
         },
         (err, data) => {
           if (err) console.log(`PutJobFailure error: ${err.message}`);
-          console.log(`PutJobFailure: ${JSON.stringify(data)}`);
-          return JSON.stringify(data);
+          console.log(`PutJobFailure successfully!`);
+          // console.log(`PutJobFailure: ${JSON.stringify(data)}`);
+          // return JSON.stringify(data);
         },
       )
       .promise();
