@@ -18,20 +18,13 @@ exports.handler = async (
     event['CodePipeline.job'].data.actionConfiguration.configuration
       .UserParameters;
 
-  const parameter = JSON.parse(JSON.stringify(userParameters));
+  const parameter = JSON.parse(userParameters);
   const repoName = parameter['GITHUB_REPO'] || '';
   const repoOwner = parameter['GITHUB_REPO_OWNER'] || '';
   const gitSourceBranch = parameter['GITHUB_SOURCE_BRANCH'] || '';
   const gitDestBranch = parameter['GITHUB_DEST_BRANCH'] || '';
   const authToken = parameter['GITHUB_OAUTH_TOKEN'] || '';
   const octokit = new Octokit({ auth: authToken });
-
-  console.log({
-    repoName: repoName,
-    repoOwner: repoOwner,
-    gitSourceBranch: gitSourceBranch,
-    gitDestBranch: gitDestBranch,
-  });
 
   try {
     const branchExists = await checkBranchExists(
@@ -61,34 +54,40 @@ exports.handler = async (
           },
         );
         console.log(`Created branch: ${JSON.stringify(response.data.ref)}`);
+        return await putJobSuccess(jobID);
       } catch (error) {
         console.error(`Error creating branch: ${JSON.stringify(error)}`);
-        return putJobFailure(context, jobID, error);
+        return await putJobFailure(context, jobID, error);
       }
     } else {
       console.log(`Branch '${gitDestBranch}' exists.`);
       const pullRequestTitle = `CodePipeline Auto-Pull-Request (Job Id: ${jobIDShort})`;
       const pullRequestBody = `Automated pull request to merge ${gitSourceBranch} into ${gitDestBranch}.`;
 
-      const pullResponse = await octokit.request(
-        'POST /repos/{owner}/{repo}/pulls',
-        {
-          owner: repoOwner,
-          repo: repoName,
-          head: gitSourceBranch,
-          base: gitDestBranch,
-          title: pullRequestTitle,
-          body: pullRequestBody,
-        },
-      );
-      console.log(`Opened pull request #${pullResponse.data.number}`);
+      try {
+        const pullResponse = await octokit.request(
+          'POST /repos/{owner}/{repo}/pulls',
+          {
+            owner: repoOwner,
+            repo: repoName,
+            head: gitSourceBranch,
+            base: gitDestBranch,
+            title: pullRequestTitle,
+            body: pullRequestBody,
+          },
+        );
+        console.log(`Opened pull request #${pullResponse.data.number}`);
+        return await putJobSuccess(jobID);
+      } catch (error) {
+        console.error(`Error creating pull request #${JSON.stringify(error)}`);
+        return await putJobFailure(context, jobID, error);
+      }
     }
-    return putJobSuccess(jobID);
   } catch (error) {
     if (error.message.includes('pull request already exists')) {
-      return putJobSuccess(jobID);
+      return await putJobSuccess(jobID);
     }
-    return putJobFailure(context, jobID, error);
+    return await putJobFailure(context, jobID, error);
   }
 };
 
@@ -137,28 +136,44 @@ const getBranchSha = async (
   }
 };
 
-const putJobFailure = (context: Context, jobID: string, error: any) => {
-  codePipelineClient.putJobFailureResult(
-    {
+const putJobFailure = async (context: Context, jobID: string, error: any) => {
+  return await codePipelineClient
+    .putJobFailureResult({
       jobId: jobID,
       failureDetails: {
         type: 'JobFailed',
         message: error.message,
         externalExecutionId: context.awsRequestId,
       },
-    },
-    (err, data) => {
-      if (err) console.log(`PutJobFailure error: ${err.message}`);
-      console.log(`PutJobFailure succcess: ${data}`);
-      return;
-    },
-  );
+    })
+    .promise();
+  // return codePipelineClient.putJobFailureResult(
+  //   {
+  //     jobId: jobID,
+  //     failureDetails: {
+  //       type: 'JobFailed',
+  //       message: error.message,
+  //       externalExecutionId: context.awsRequestId,
+  //     },
+  //   },
+  //   (err, data) => {
+  //     if (err) console.log(`PutJobFailure error: ${err.message}`);
+  //     console.log(`PutJobFailure succcess: ${data}`);
+  //     return data;
+  //   },
+  // );
 };
 
-const putJobSuccess = (jobID: string) => {
-  codePipelineClient.putJobSuccessResult({ jobId: jobID }, (err, data) => {
-    if (err) console.log(`PutJobSuccess error: ${err.message}`);
-    console.log(`PutJobSuccess succcess: ${data}`);
-    return;
-  });
+const putJobSuccess = async (jobID: string) => {
+  return await codePipelineClient
+    .putJobSuccessResult({ jobId: jobID })
+    .promise();
+  // return codePipelineClient.putJobSuccessResult(
+  //   { jobId: jobID },
+  //   (err, data) => {
+  //     if (err) console.log(`PutJobSuccess error: ${err.message}`);
+  //     console.log(`PutJobSuccess succcess: ${data}`);
+  //     return data;
+  //   },
+  // );
 };
