@@ -147,33 +147,10 @@ const putJobFailure = async (context: Context, jobID: string, error: any) => {
       },
     })
     .promise();
-  // return codePipelineClient.putJobFailureResult(
-  //   {
-  //     jobId: jobID,
-  //     failureDetails: {
-  //       type: 'JobFailed',
-  //       message: error.message,
-  //       externalExecutionId: context.awsRequestId,
-  //     },
-  //   },
-  //   (err, data) => {
-  //     if (err) console.log(`PutJobFailure error: ${err.message}`);
-  //     console.log(`PutJobFailure succcess: ${data}`);
-  //     return data;
-  //   },
-  // );
 };
 
 const putJobSuccess = async (jobID: string) => {
   return await codePipelineClient
     .putJobSuccessResult({ jobId: jobID })
     .promise();
-  // return codePipelineClient.putJobSuccessResult(
-  //   { jobId: jobID },
-  //   (err, data) => {
-  //     if (err) console.log(`PutJobSuccess error: ${err.message}`);
-  //     console.log(`PutJobSuccess succcess: ${data}`);
-  //     return data;
-  //   },
-  // );
 };
