@@ -17,7 +17,6 @@ exports.handler = async (
   const userParameters =
     event['CodePipeline.job'].data.actionConfiguration.configuration
       .UserParameters;
-
   const parameter = JSON.parse(userParameters);
   const repoName = parameter['GITHUB_REPO'] || '';
   const repoOwner = parameter['GITHUB_REPO_OWNER'] || '';
@@ -26,68 +25,69 @@ exports.handler = async (
   const authToken = parameter['GITHUB_OAUTH_TOKEN'] || '';
   const octokit = new Octokit({ auth: authToken });
 
-  try {
-    const branchExists = await checkBranchExists(
-      octokit,
-      repoOwner,
-      repoName,
-      gitDestBranch,
-    );
+  const branchExists = await checkBranchExists(
+    octokit,
+    repoOwner,
+    repoName,
+    gitDestBranch,
+  );
 
-    if (!branchExists) {
-      try {
-        console.log(`Creating branch '${gitDestBranch}' ...`);
-        const sourceBranchSha = await getBranchSha(
-          octokit,
-          repoOwner,
-          repoName,
-          gitSourceBranch,
-        );
+  if (!branchExists) {
+    try {
+      console.log(`Creating branch '${gitDestBranch}' ...`);
+      const sourceBranchSha = await getBranchSha(
+        octokit,
+        repoOwner,
+        repoName,
+        gitSourceBranch,
+      );
 
-        const response = await octokit.request(
-          'POST /repos/{owner}/{repo}/git/refs',
-          {
-            owner: repoOwner,
-            repo: repoName,
-            ref: `refs/heads/${gitDestBranch}`,
-            sha: sourceBranchSha || '',
-          },
-        );
-        console.log(`Created branch: ${JSON.stringify(response.data.ref)}`);
-        return await putJobSuccess(jobID);
-      } catch (error) {
-        console.error(`Error creating branch: ${JSON.stringify(error)}`);
-        return await putJobFailure(context, jobID, error);
-      }
-    } else {
-      console.log(`Branch '${gitDestBranch}' exists.`);
-      const pullRequestTitle = `CodePipeline Auto-Pull-Request (Job Id: ${jobIDShort})`;
-      const pullRequestBody = `Automated pull request to merge ${gitSourceBranch} into ${gitDestBranch}.`;
-
-      try {
-        const pullResponse = await octokit.request(
-          'POST /repos/{owner}/{repo}/pulls',
-          {
-            owner: repoOwner,
-            repo: repoName,
-            head: gitSourceBranch,
-            base: gitDestBranch,
-            title: pullRequestTitle,
-            body: pullRequestBody,
-          },
-        );
-        console.log(`Opened pull request #${pullResponse.data.number}`);
-        return await putJobSuccess(jobID);
-      } catch (error) {
-        console.error(`Error creating pull request #${JSON.stringify(error)}`);
-        return await putJobFailure(context, jobID, error);
-      }
-    }
-  } catch (error) {
-    if (error.message.includes('pull request already exists')) {
+      const response = await octokit.request(
+        'POST /repos/{owner}/{repo}/git/refs',
+        {
+          owner: repoOwner,
+          repo: repoName,
+          ref: `refs/heads/${gitDestBranch}`,
+          sha: sourceBranchSha || '',
+        },
+      );
+      console.log(`Created branch: ${JSON.stringify(response.data.ref)}`);
       return await putJobSuccess(jobID);
+    } catch (error) {
+      console.error(`Error creating branch: ${JSON.stringify(error)}`);
+      return await putJobFailure(context, jobID, error);
     }
-    return await putJobFailure(context, jobID, error);
+  } else {
+    console.log(`Branch '${gitDestBranch}' exists.`);
+    const pullRequestTitle = `CodePipeline Auto-Pull-Request (Job Id: ${jobIDShort})`;
+    const pullRequestBody = `Automated pull request to merge ${gitSourceBranch} into ${gitDestBranch}.`;
+
+    try {
+      const pullResponse = await octokit.request(
+        'POST /repos/{owner}/{repo}/pulls',
+        {
+          owner: repoOwner,
+          repo: repoName,
+          head: gitSourceBranch,
+          base: gitDestBranch,
+          title: pullRequestTitle,
+          body: pullRequestBody,
+        },
+      );
+      console.log(`Opened pull request #${pullResponse.data.number}`);
+      return await putJobSuccess(jobID);
+    } catch (error) {
+      if (error.message.includes('pull request already exists')) {
+        console.log(`${error.message}. Skipping ...`);
+        return await putJobSuccess(jobID);
+      }
+      if (error.message.includes('No commits between')) {
+        console.log(`${error.message}. Skipping ...`);
+        return await putJobSuccess(jobID);
+      }
+      console.error(`Error creating pull request: ${JSON.stringify(error)}`);
+      return await putJobFailure(context, jobID, error);
+    }
   }
 };
 
