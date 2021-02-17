@@ -24,8 +24,14 @@ exports.handler = async (
   const gitSourceBranch = parameter['GITHUB_SOURCE_BRANCH'] || '';
   const gitDestBranch = parameter['GITHUB_DEST_BRANCH'] || '';
   const authToken = parameter['GITHUB_OAUTH_TOKEN'] || '';
-
   const octokit = new Octokit({ auth: authToken });
+
+  console.log({
+    repoName: repoName,
+    repoOwner: repoOwner,
+    gitSourceBranch: gitSourceBranch,
+    gitDestBranch: gitDestBranch,
+  });
 
   try {
     const branchExists = await checkBranchExists(
@@ -57,7 +63,7 @@ exports.handler = async (
         console.log(`Created branch: ${JSON.stringify(response.data.ref)}`);
       } catch (error) {
         console.error(`Error creating branch: ${JSON.stringify(error)}`);
-        throw error;
+        return putJobFailure(context, jobID, error);
       }
     } else {
       console.log(`Branch '${gitDestBranch}' exists.`);
@@ -77,36 +83,12 @@ exports.handler = async (
       );
       console.log(`Opened pull request #${pullResponse.data.number}`);
     }
-
-    codePipelineClient.putJobSuccessResult({ jobId: jobID }, (err, data) => {
-      if (err) console.log(`PutJobSuccess error: ${err.message}`);
-      console.log(`PutJobSuccess succcess: ${data}`);
-      return;
-    });
+    return putJobSuccess(jobID);
   } catch (error) {
     if (error.message.includes('pull request already exists')) {
-      codePipelineClient.putJobSuccessResult({ jobId: jobID }, (err, data) => {
-        if (err) console.log(`PutJobSuccess error: ${err.message}`);
-        console.log(`PutJobSuccess succcess: ${data}`);
-        return;
-      });
+      return putJobSuccess(jobID);
     }
-
-    codePipelineClient.putJobFailureResult(
-      {
-        jobId: jobID,
-        failureDetails: {
-          type: 'JobFailed',
-          message: error.message,
-          externalExecutionId: context.awsRequestId,
-        },
-      },
-      (err, data) => {
-        if (err) console.log(`PutJobFailure error: ${err.message}`);
-        console.log(`PutJobFailure succcess: ${data}`);
-        return;
-      },
-    );
+    return putJobFailure(context, jobID, error);
   }
 };
 
@@ -153,4 +135,30 @@ const getBranchSha = async (
     console.error(`Error: ${error}`);
     return false;
   }
+};
+
+const putJobFailure = (context: Context, jobID: string, error: any) => {
+  codePipelineClient.putJobFailureResult(
+    {
+      jobId: jobID,
+      failureDetails: {
+        type: 'JobFailed',
+        message: error.message,
+        externalExecutionId: context.awsRequestId,
+      },
+    },
+    (err, data) => {
+      if (err) console.log(`PutJobFailure error: ${err.message}`);
+      console.log(`PutJobFailure succcess: ${data}`);
+      return;
+    },
+  );
+};
+
+const putJobSuccess = (jobID: string) => {
+  codePipelineClient.putJobSuccessResult({ jobId: jobID }, (err, data) => {
+    if (err) console.log(`PutJobSuccess error: ${err.message}`);
+    console.log(`PutJobSuccess succcess: ${data}`);
+    return;
+  });
 };
