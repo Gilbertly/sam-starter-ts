@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@octokit/core": "^3.2.4",
-    "@sentry/node": "^6.0.0",
+    "@sentry/node": "^6.2.3",
     "aws-sdk": "^2.829.0"
   }
 }
