@@ -85,13 +85,6 @@ Resources:
       FunctionName: GithubActionFunction
       Handler: github.handler
       Role: !GetAtt GitHubActionFunctionRole.Arn
-      Environment:
-        Variables:
-          GITHUB_REPO_OWNER: !Ref GithubOwner
-          GITHUB_REPO: !Ref GithubRepo
-          GITHUB_SOURCE_BRANCH: !Ref GithubBranchSource
-          GITHUB_DEST_BRANCH: !Ref GithubBranchDest
-          GITHUB_OAUTH_TOKEN: !Ref GithubOAuthToken
 
   GitHubActionFunctionRole:
     Type: AWS::IAM::Role
@@ -120,6 +113,7 @@ Resources:
                   - codepipeline:AcknowledgeJob
                   - codepipeline:PutJobSuccessResult
                   - codepipeline:PutJobFailureResult
+                  - codepipeline:GetJobDetails
                 Resource: '*'
           PolicyName: !Sub '${ProjectName}-github-action-policy'
       RoleName: !Sub '${ProjectName}-github-action-role'
@@ -175,9 +169,6 @@ Resources:
           - Name: REPO_NAME
             Type: PLAINTEXT
             Value: !Ref GithubRepo
-          - Name: ROLLBACK_VERSION
-            Type: PLAINTEXT
-            Value: !Ref RollbackVersion
 
   CodeBuildProjectRole:
     Type: AWS::IAM::Role
@@ -280,6 +271,14 @@ Resources:
                   Provider: Lambda
                 Configuration:
                   FunctionName: !Ref GitHubActionFunction
+                  UserParameters: !Sub |
+                    {
+                      'GITHUB_REPO_OWNER': '${GithubOwner}',
+                      'GITHUB_REPO': '${GithubRepo}',
+                      'GITHUB_SOURCE_BRANCH': '${GithubBranchSource}',
+                      'GITHUB_DEST_BRANCH': '${GithubBranchDest}',
+                      'GITHUB_OAUTH_TOKEN': '${GithubOAuthToken}'
+                    }
                 RunOrder: 2
               - !Ref AWS::NoValue
 
